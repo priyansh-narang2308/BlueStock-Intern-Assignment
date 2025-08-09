@@ -104,6 +104,7 @@ const FeaturedIPOCarousel: React.FC<FeaturedIPOCarouselProps> = ({ ipos }) => {
                 <Button 
                   variant="default" 
                   size="lg"
+                  className='bg-lime-700 hover:bg-lime-900'
                 >
                   View RHP
                 </Button>

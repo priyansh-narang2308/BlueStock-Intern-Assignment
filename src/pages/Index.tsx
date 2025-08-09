@@ -1,67 +1,112 @@
-import React, { useState, useMemo } from 'react';
-import {
-  upcomingIPOs,
-  ongoingIPOs,
-  listedIPOs,
-  ipoNews,
-  ipoAnalysis,
-  faqData,
-} from '@/data/ipoData';
-import IPOCard from '@/components/IPOCard';
-import FeaturedIPOCarousel from '@/components/FeaturedIPOCarousel';
-import SearchAndFilter from '@/components/SearchAndFilter';
-import NewsSection from '@/components/NewsSection';
-import FAQAccordion from '@/components/FAQAccordion';
-import ApplyIPOModal from '@/components/ApplyIPOModal';
-import { Button } from '@/components/ui/button';
-import { Menu, X } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from "react";
+import { IPO, ipoNews, ipoAnalysis, faqData } from "@/data/ipoData";
+import IPOCard from "@/components/IPOCard";
+import FeaturedIPOCarousel from "@/components/FeaturedIPOCarousel";
+import SearchAndFilter from "@/components/SearchAndFilter";
+import NewsSection from "@/components/NewsSection";
+import FAQAccordion from "@/components/FAQAccordion";
+import ApplyIPOModal from "@/components/ApplyIPOModal";
+import { Button } from "@/components/ui/button";
+import { Menu, X } from "lucide-react";
+import { Link } from "react-router-dom";
+import { getIPOs, getCompanies } from "@/lib/api";
+// Company state
+type Company = {
+  id: string;
+  name: string;
+  sector: string;
+  description?: string;
+};
 
 const Index: React.FC = () => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sectorFilter, setSectorFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sectorFilter, setSectorFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showAllUpcoming, setShowAllUpcoming] = useState(false);
   const [showAllOngoing, setShowAllOngoing] = useState(false);
   const [showAllListed, setShowAllListed] = useState(false);
 
-  const featuredIPOs = [...upcomingIPOs, ...ongoingIPOs].filter((ipo) => ipo.featured);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const allIPOs = [...upcomingIPOs, ...ongoingIPOs, ...listedIPOs];
+  const [allIPOs, setAllIPOs] = useState<IPO[]>([]);
+  const [featuredIPOs, setFeaturedIPOs] = useState<IPO[]>([]);
+
+  useEffect(() => {
+    fetchIPOs();
+    fetchCompanies();
+    // eslint-disable-next-line
+  }, []);
+  const fetchCompanies = async () => {
+    try {
+      const data = await getCompanies();
+      setCompanies(data);
+    } catch (err) {
+      setCompanies([]);
+    }
+  };
+
+  const fetchIPOs = async () => {
+    try {
+      const ipos = await getIPOs();
+      const iposWithLogo = ipos.map((ipo: IPO) => ({
+        ...ipo,
+        logo: ipo.logo || "🏢",
+        priceRange: ipo.priceRange || { min: 0, max: 0 },
+        lotSize: ipo.lotSize || 0,
+        issueSize: ipo.issueSize || "",
+        issueType: ipo.issueType || "Book Built",
+        listingDate: ipo.listingDate || "",
+        sector: ipo.sector || "",
+        rhpLink: ipo.rhpLink || "#",
+        description: ipo.description || "",
+        status: ipo.status || "upcoming",
+      }));
+      setAllIPOs(iposWithLogo);
+      setFeaturedIPOs(iposWithLogo.filter((ipo: IPO) => ipo.featured));
+    } catch (err) {
+      setAllIPOs([]);
+      setFeaturedIPOs([]);
+    }
+  };
 
   const filteredIPOs = useMemo(() => {
     return allIPOs.filter((ipo) => {
-      const matchesSearch = ipo.companyName.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSearch = ipo.companyName
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase());
       const matchesSector =
-        sectorFilter === '' || sectorFilter === 'all' || ipo.sector === sectorFilter;
+        sectorFilter === "" ||
+        sectorFilter === "all" ||
+        ipo.sector === sectorFilter;
       const matchesStatus =
-        statusFilter === '' || statusFilter === 'all' || ipo.status === statusFilter;
+        statusFilter === "" ||
+        statusFilter === "all" ||
+        ipo.status === statusFilter;
 
       return matchesSearch && matchesSector && matchesStatus;
     });
   }, [searchQuery, sectorFilter, statusFilter, allIPOs]);
 
   const upcomingIPOsToShow = showAllUpcoming
-    ? filteredIPOs.filter((ipo) => ipo.status === 'upcoming')
-    : filteredIPOs.filter((ipo) => ipo.status === 'upcoming').slice(0, 3);
+    ? filteredIPOs.filter((ipo) => ipo.status === "upcoming")
+    : filteredIPOs.filter((ipo) => ipo.status === "upcoming").slice(0, 3);
 
   const ongoingIPOsToShow = showAllOngoing
-    ? filteredIPOs.filter((ipo) => ipo.status === 'ongoing')
-    : filteredIPOs.filter((ipo) => ipo.status === 'ongoing').slice(0, 3);
+    ? filteredIPOs.filter((ipo) => ipo.status === "ongoing")
+    : filteredIPOs.filter((ipo) => ipo.status === "ongoing").slice(0, 3);
 
   const listedIPOsToShow = showAllListed
-    ? filteredIPOs.filter((ipo) => ipo.status === 'listed')
-    : filteredIPOs.filter((ipo) => ipo.status === 'listed').slice(0, 3);
+    ? filteredIPOs.filter((ipo) => ipo.status === "listed")
+    : filteredIPOs.filter((ipo) => ipo.status === "listed").slice(0, 3);
 
   const handleSearch = (query: string) => setSearchQuery(query);
   const handleSectorFilter = (sector: string) => setSectorFilter(sector);
   const handleStatusFilter = (status: string) => setStatusFilter(status);
   const handleClearFilters = () => {
-    setSearchQuery('');
-    setSectorFilter('');
-    setStatusFilter('');
+    setSearchQuery("");
+    setSectorFilter("");
+    setStatusFilter("");
   };
 
   return (
@@ -83,36 +128,87 @@ const Index: React.FC = () => {
             </div>
 
             <nav className="hidden md:flex items-center space-x-8">
-              <a href="#" className="text-gray-600 hover:text-blue-600 font-medium">IPO</a>
-              <a href="#" className="text-gray-600 hover:text-blue-600 font-medium">COMMUNITY</a>
-              <a href="#" className="text-gray-600 hover:text-blue-600 font-medium">PRODUCTS</a>
-              <a href="#" className="text-gray-600 hover:text-blue-600 font-medium">BROKERS</a>
+              <a
+                href="#"
+                className="text-gray-600 hover:text-blue-600 font-medium"
+              >
+                IPO
+              </a>
+              <a
+                href="#"
+                className="text-gray-600 hover:text-blue-600 font-medium"
+              >
+                COMMUNITY
+              </a>
+              <a
+                href="#"
+                className="text-gray-600 hover:text-blue-600 font-medium"
+              >
+                PRODUCTS
+              </a>
+              <a
+                href="#"
+                className="text-gray-600 hover:text-blue-600 font-medium"
+              >
+                BROKERS
+              </a>
             </nav>
 
             <div className="flex items-center space-x-4">
-              <Button variant="ghost" className="hidden md:block">Sign In</Button>
- <Link to={"/admin"}>
-              <Button variant="default" className="w-full text-left">GO TO ADMIN</Button>
-              </Link>              <Button
+              <Button variant="ghost" className="hidden md:block">
+                Sign In
+              </Button>
+              <Link to={"/admin"}>
+                <Button variant="default" className="w-full text-left">
+                  GO TO ADMIN
+                </Button>
+              </Link>{" "}
+              <Button
                 variant="ghost"
                 size="sm"
                 className="md:hidden"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               >
-                {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                {isMobileMenuOpen ? (
+                  <X className="w-5 h-5" />
+                ) : (
+                  <Menu className="w-5 h-5" />
+                )}
               </Button>
             </div>
           </div>
 
           {isMobileMenuOpen && (
             <div className="md:hidden pb-4 space-y-2">
-              <a href="#" className="block text-gray-700 hover:text-blue-600 font-medium">IPO</a>
-              <a href="#" className="block text-gray-700 hover:text-blue-600 font-medium">COMMUNITY</a>
-              <a href="#" className="block text-gray-700 hover:text-blue-600 font-medium">PRODUCTS</a>
-              <a href="#" className="block text-gray-700 hover:text-blue-600 font-medium">BROKERS</a>
-             
+              <a
+                href="#"
+                className="block text-gray-700 hover:text-blue-600 font-medium"
+              >
+                IPO
+              </a>
+              <a
+                href="#"
+                className="block text-gray-700 hover:text-blue-600 font-medium"
+              >
+                COMMUNITY
+              </a>
+              <a
+                href="#"
+                className="block text-gray-700 hover:text-blue-600 font-medium"
+              >
+                PRODUCTS
+              </a>
+              <a
+                href="#"
+                className="block text-gray-700 hover:text-blue-600 font-medium"
+              >
+                BROKERS
+              </a>
+
               <Link to={"/admin"}>
-              <Button variant="ghost" className="w-full text-left">GO TO ADMIN</Button>
+                <Button variant="ghost" className="w-full text-left">
+                  GO TO ADMIN
+                </Button>
               </Link>
             </div>
           )}
@@ -121,10 +217,37 @@ const Index: React.FC = () => {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-4">IPO</h1>
+          <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-4">
+            IPO
+          </h1>
           <p className="text-xl text-gray-600 mb-2">
             Following is the list of companies for IPO as of today.
           </p>
+          {companies.length > 0 && (
+            <div className="mt-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                Companies
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {companies.map((company) => (
+                  <div
+                    key={company.id}
+                    className="bg-white rounded-lg shadow p-4 border"
+                  >
+                    <h3 className="font-semibold text-lg text-blue-700 mb-1">
+                      {company.name}
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-1">
+                      Sector: {company.sector}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {company.description}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {featuredIPOs.length > 0 && <FeaturedIPOCarousel ipos={featuredIPOs} />}
@@ -139,54 +262,73 @@ const Index: React.FC = () => {
         <section className="mb-12">
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Upcoming</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                Upcoming
+              </h2>
               <p className="text-gray-600">
-                Companies that have filed for an IPO with SEBI. Few details might not be disclosed by the companies here on.
+                Companies that have filed for an IPO with SEBI. Few details
+                might not be disclosed by the companies here on.
               </p>
             </div>
-            {filteredIPOs.filter((ipo) => ipo.status === 'upcoming').length > 3 && (
-              <Button 
-                variant="outline" 
+            {filteredIPOs.filter((ipo) => ipo.status === "upcoming").length >
+              3 && (
+              <Button
+                variant="outline"
                 className="bg-blue-600 text-white hover:bg-blue-700"
                 onClick={() => setShowAllUpcoming(!showAllUpcoming)}
               >
-                {showAllUpcoming ? 'Show Less' : 'View All'}
+                {showAllUpcoming ? "Show Less" : "View All"}
               </Button>
             )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {upcomingIPOsToShow.map((ipo) => (
-              <IPOCard key={ipo.id} ipo={ipo} onClick={() => setIsApplyModalOpen(true)} />
+              <IPOCard
+                key={ipo.id}
+                ipo={ipo}
+                onClick={() => setIsApplyModalOpen(true)}
+              />
             ))}
           </div>
         </section>
 
-        <ApplyIPOModal isOpen={isApplyModalOpen} onClose={() => setIsApplyModalOpen(false)} />
+        <ApplyIPOModal
+          isOpen={isApplyModalOpen}
+          onClose={() => setIsApplyModalOpen(false)}
+        />
 
-        {ongoingIPOs.length > 0 && (
+        {filteredIPOs.filter((ipo) => ipo.status === "ongoing").length > 0 && (
           <section className="mb-12">
             <div className="flex justify-between items-center mb-6">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">Ongoing</h2>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  Ongoing
+                </h2>
                 <p className="text-gray-600">
-                  Companies where live IPO investment process is started and can be subscribed soon in the stock market for regular trading.
+                  Companies where live IPO investment process is started and can
+                  be subscribed soon in the stock market for regular trading.
                 </p>
               </div>
-              {filteredIPOs.filter((ipo) => ipo.status === 'ongoing').length > 3 && (
-                <Button 
-                  variant="outline" 
+              {filteredIPOs.filter((ipo) => ipo.status === "ongoing").length >
+                3 && (
+                <Button
+                  variant="outline"
                   className="bg-blue-600 text-white hover:bg-blue-700"
                   onClick={() => setShowAllOngoing(!showAllOngoing)}
                 >
-                  {showAllOngoing ? 'Show Less' : 'View All'}
+                  {showAllOngoing ? "Show Less" : "View All"}
                 </Button>
               )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {ongoingIPOsToShow.map((ipo) => (
-                <IPOCard key={ipo.id} ipo={ipo} onClick={() => setIsApplyModalOpen(true)} />
+                <IPOCard
+                  key={ipo.id}
+                  ipo={ipo}
+                  onClick={() => setIsApplyModalOpen(true)}
+                />
               ))}
             </div>
           </section>
@@ -195,18 +337,22 @@ const Index: React.FC = () => {
         <section className="mb-12">
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">New Listed</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                New Listed
+              </h2>
               <p className="text-gray-600">
-                Companies that have been listed recently through an IPO. Find their listing gains and returns here.
+                Companies that have been listed recently through an IPO. Find
+                their listing gains and returns here.
               </p>
             </div>
-            {filteredIPOs.filter((ipo) => ipo.status === 'listed').length > 3 && (
-              <Button 
-                variant="outline" 
+            {filteredIPOs.filter((ipo) => ipo.status === "listed").length >
+              3 && (
+              <Button
+                variant="outline"
                 className="bg-blue-600 text-white hover:bg-blue-700"
                 onClick={() => setShowAllListed(!showAllListed)}
               >
-                {showAllListed ? 'Show Less' : 'View All'}
+                {showAllListed ? "Show Less" : "View All"}
               </Button>
             )}
           </div>
@@ -221,7 +367,11 @@ const Index: React.FC = () => {
         <section className="mb-12">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <NewsSection title="IPO News" news={ipoNews} viewAllLink="/news" />
-            <NewsSection title="IPO Analysis" news={ipoAnalysis} viewAllLink="/analysis" />
+            <NewsSection
+              title="IPO Analysis"
+              news={ipoAnalysis}
+              viewAllLink="/analysis"
+            />
           </div>
         </section>
 
@@ -248,20 +398,52 @@ const Index: React.FC = () => {
             <div>
               <h3 className="font-semibold mb-4">Quick Links</h3>
               <ul className="space-y-2 text-gray-400">
-                <li><a href="#" className="hover:text-white">Home</a></li>
-                <li><a href="#" className="hover:text-white">About Us</a></li>
-                <li><a href="#" className="hover:text-white">Services</a></li>
-                <li><a href="#" className="hover:text-white">Contact</a></li>
+                <li>
+                  <a href="#" className="hover:text-white">
+                    Home
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-white">
+                    About Us
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-white">
+                    Services
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-white">
+                    Contact
+                  </a>
+                </li>
               </ul>
             </div>
 
             <div>
               <h3 className="font-semibold mb-4">Resources</h3>
               <ul className="space-y-2 text-gray-400">
-                <li><a href="#" className="hover:text-white">Blog</a></li>
-                <li><a href="#" className="hover:text-white">FAQ</a></li>
-                <li><a href="#" className="hover:text-white">Help Center</a></li>
-                <li><a href="#" className="hover:text-white">Privacy Policy</a></li>
+                <li>
+                  <a href="#" className="hover:text-white">
+                    Blog
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-white">
+                    FAQ
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-white">
+                    Help Center
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-white">
+                    Privacy Policy
+                  </a>
+                </li>
               </ul>
             </div>
 
